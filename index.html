@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>どっちをえらぶ？ 計算シューティング</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#eaf4ff;color:#17324d;font-family:Arial,"Noto Sans JP",sans-serif}
+#game{max-width:1000px;margin:auto;padding:10px;min-height:100vh}
+#startScreen{max-width:760px;margin:10px auto}
+.levelGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.levelBtn{min-height:135px;border:4px solid #4d9de0}
+.levelBtn small{font-size:13px}
+.levelBtn span{font-size:20px}
+.hiragana-only{font-family:Arial,"Noto Sans JP",sans-serif}
+button{border:0;border-radius:18px;padding:14px 10px;font-size:clamp(18px,3vw,27px);font-weight:bold;cursor:pointer;background:#fff;color:#17324d;box-shadow:0 4px 0 #b2c5d4}
+button:active{transform:translateY(3px);box-shadow:0 1px 0 #b2c5d4}
+button:disabled{opacity:.55;cursor:default}
+.top{display:none}
+.arena{margin-top:4px;background:linear-gradient(#bfe5ff 0 61%,#9edb87 61%);border-radius:20px;padding:10px;min-height:235px;position:relative;overflow:hidden;border:3px solid #fff;box-shadow:0 3px 10px #abc3d8}
+.road{position:absolute;left:18%;right:18%;bottom:-20px;height:145px;background:#777;transform:perspective(260px) rotateX(8deg);border-radius:28px 28px 0 0}
+.road:after{content:"";position:absolute;left:48%;top:0;width:5px;height:100%;background:#eee;opacity:.8}
+.message{position:relative;z-index:6;text-align:center;background:#ffffffdd;border-radius:14px;padding:7px;font-size:clamp(17px,2.7vw,23px);font-weight:bold}
+.enemies{position:absolute;top:28px;left:0;right:0;text-align:center;font-size:39px;z-index:3;letter-spacing:4px}
+.player{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);font-size:48px;z-index:4;transition:left .35s}
+.timer{height:11px;background:#d3e0eb;border-radius:20px;overflow:hidden;margin-top:6px}
+#bar{height:100%;width:100%;background:#4d9de0;transition:width .1s linear}
+#infoRow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:6px}
+#hint{font-size:15px;flex:1}
+#stageDisplay{font-weight:bold;white-space:nowrap;background:#fff;border-radius:12px;padding:6px 11px;box-shadow:0 2px 6px #b9cfe3}
+#bigPower{text-align:center;background:#fff;border-radius:18px;padding:5px;margin-top:4px;border:3px solid #4d9de0;box-shadow:0 2px 7px #b9cfe3}
+#bigPower .label{font-size:14px;font-weight:bold}
+#bigPowerValue{font-size:clamp(38px,7vw,62px);font-weight:900;line-height:1}
+#bossTarget{display:none;text-align:center;background:#fff4cf;border:3px solid #e4bd4d;border-radius:14px;padding:7px;margin-top:5px;font-weight:bold;font-size:17px}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:7px}
+.choice{min-height:82px}
+.choice small{display:block;font-size:13px;margin-top:4px;font-weight:normal}
+.plus{border:4px solid #55b96a}
+.minus{border:4px solid #e46d6d}
+.times{border:4px solid #6d8ee8}
+.bossChoice{border:5px solid #8b4bb8!important;background:#fff7ff!important;min-height:115px}
+.bossFace{display:block;font-size:32px;margin-bottom:2px}
+#result{display:none;text-align:center}
+#result .big{font-size:40px;font-weight:bold}
+.resultButtons{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+#result button{font-size:20px}
+#backTitle{background:#dfeaf2}
+@media(max-width:600px){
+.levelGrid{grid-template-columns:1fr}
+#infoRow{gap:6px}
+#hint{font-size:14px}
+.arena{min-height:220px}
+.choices{gap:7px}
+.choice{min-height:78px}
+}
+</style>
+</head>
+<body>
+<div id="game">
+
+<div id="startScreen" class="panel">
+<h1 style="text-align:center;margin-top:0">🎯 どっちをえらぶ？</h1>
+<p id="startDescription" style="text-align:center">けいさんして、できるだけ こうげきりょくを たかくしよう！</p>
+<h2 style="text-align:center">れべるをえらぼう</h2>
+<div class="levelGrid">
+<button class="levelBtn hiragana-only" data-level="1">れべる1<br><small>1ねんせい</small><br><span>こうげきりょく 10</span><br><small>＋・−だけ ／ 15びょう</small></button>
+<button class="levelBtn hiragana-only" data-level="2">れべる2<br><small>2ねんせい</small><br><span>こうげきりょく 10</span><br><small>＋・−おおめ ／ ×すくなめ ／ 12びょう</small></button>
+<button class="levelBtn" data-level="3">レベル3<br><small>3〜4ねんせい</small><br><span>攻撃力 100</span><br><small>＋・−・× ／ 9秒</small></button>
+<button class="levelBtn" data-level="4">レベル4<br><small>5〜6ねんせい</small><br><span>攻撃力 1,000</span><br><small>＋・−・× ／ 6秒</small></button>
+</div>
+<p style="font-size:13px;text-align:center">※ がくねんは めやすです。じぶんに あう れべるを えらんでください。</p>
+</div>
+
+<div id="gameScreen" style="display:none">
+
+<div class="arena">
+<div class="message" id="message">準備中……</div>
+<div class="enemies" id="enemies">👾 👾 👾</div>
+<div class="road"></div>
+<div class="player" id="player">🧑‍🚀</div>
+</div>
+
+<div class="timer"><div id="bar"></div></div>
+
+<div id="infoRow">
+<div id="hint">計算して比べる時間です。</div>
+<div id="stageDisplay">ステージ：<span id="stage">1</span>/10</div>
+</div>
+
+<div id="bigPower">
+<div class="label" id="powerLabel">いまの こうげきりょく</div>
+<div id="bigPowerValue">10</div>
+</div>
+
+<div id="bossTarget"></div>
+
+<div class="choices">
+<button id="left" class="choice" disabled>左</button>
+<button id="right" class="choice" disabled>右</button>
+</div>
+
+<div class="panel" style="padding:8px;margin-top:8px">
+<div style="font-size:13px;margin-bottom:5px">これまでの選択</div>
+<div id="history" class="history"><span class="chip">まだありません</span></div>
+</div>
+
+<div class="panel" id="result">
+<h2 id="resultTitle">🎉 げーむ しゅうりょう！</h2>
+<div class="big"><span id="finalPower">0</span></div>
+<div id="finalPowerNumberLabel">さいごの こうげきりょく（すうじ）</div>
+<div id="finalPowerJapanese" style="font-size:clamp(28px,5vw,44px);font-weight:900;margin-top:4px;">0</div>
+<div id="finalPowerKanjiLabel">さいごの こうげきりょく（かんじまじり）</div>
+<p id="resultText"></p>
+<div class="resultButtons">
+<button id="backTitle">タイトルに戻る</button>
+</div>
+</div>
+
+</div>
+</div>
+
+<script>
+"use strict";
+
+let power=10;
+let stage=1;
+let currentLevel=1;
+let locked=true;
+let timer=null;
+let timeLeft=0;
+let totalTime=15000;
+
+/* 最適解を追跡するための「理論上の最高攻撃力」 */
+let optimalPower=10;
+/* ラスボスHPを、最適解でギリギリ倒せる値にするための記録 */
+let finalBossHP=10;
+
+const startScreen=document.getElementById("startScreen");
+const gameScreen=document.getElementById("gameScreen");
+const powerEl=document.getElementById("bigPowerValue");
+const stageEl=document.getElementById("stage");
+const msg=document.getElementById("message");
+const left=document.getElementById("left");
+const right=document.getElementById("right");
+const bar=document.getElementById("bar");
+const hint=document.getElementById("hint");
+const player=document.getElementById("player");
+const enemies=document.getElementById("enemies");
+const history=document.getElementById("history");
+const bossTarget=document.getElementById("bossTarget");
+const result=document.getElementById("result");
+
+function rnd(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
+function digits(n){return String(Math.max(1,Math.floor(n))).length;}
+
+function randomByDigits(minDigits,maxDigits){
+const d=rnd(minDigits,maxDigits);
+const min=d===1?1:Math.pow(10,d-1);
+const max=Math.pow(10,d)-1;
+return rnd(min,max);
+}
+
+function valueFor(base,c){
+if(c.op==="＋")return base+c.n;
+if(c.op==="−")return Math.max(0,base-c.n);
+return base*c.n;
+}
+
+function calc(c){return valueFor(power,c);}
+
+/* レベルごとの選択肢 */
+function makeChoice(){
+const d=digits(power);
+let op,n;
+const roll=Math.random();
+
+if(currentLevel===1){
+/* 1年生は＋・−ともに1桁固定 */
+op=Math.random()<0.5?"＋":"−";
+n=rnd(1,9);
+if(op==="−" && n>power)n=Math.max(1,power);
+}else if(currentLevel===2){
+if(roll<0.46){
+op="＋";
+n=randomByDigits(Math.max(1,d),Math.min(6,d+1));
+}else if(roll<0.92){
+op="−";
+const md=Math.max(1,d-1);
+n=randomByDigits(md,md);
+if(n>=power)n=Math.max(1,Math.floor(power/2));
+}else{
+op="×";
+n=rnd(0,4);
+}
+}else{
+if(roll<0.34){
+op="＋";
+n=randomByDigits(Math.max(1,d),Math.min(6,d+1));
+}else if(roll<0.67){
+op="−";
+const md=Math.max(1,d-1);
+n=randomByDigits(md,md);
+if(n>=power)n=Math.max(1,Math.floor(power/2));
+}else{
+op="×";
+n=rnd(0,9);
+}
+}
+return {op,n};
+}
+
+function setButton(btn,c,side){
+btn.className="choice "+(c.op==="＋"?"plus":c.op==="−"?"minus":"times");
+const sub=currentLevel<=2?"この もんを えらぶ":"この門をえらぶ";
+btn.innerHTML=side+"　"+c.op+c.n+"<small>"+sub+"</small>";
+btn.disabled=false;
+btn.dataset.op=c.op;
+btn.dataset.n=c.n;
+btn.dataset.isBoss="0";
+}
+
+function updatePowerDisplay(){
+powerEl.textContent=power.toLocaleString();
+}
+
+function updateBossTarget(){
+if(stage>=3 && stage<=9){
+const nextBossStage=Math.ceil(stage/3)*3;
+const base=Math.max(power+1,Math.floor(power*(stage===nextBossStage?1.6:2.2)));
+const hpA=Math.max(10,Math.floor(base*0.90));
+const hpB=Math.max(1,Math.floor(base*0.65));
+bossTarget.style.display="block";
+bossTarget.innerHTML=
+"次のボス（"+nextBossStage+"ステージ）目標："+
+"<span>A HP "+hpA+"</span> ／ <span>B HP "+hpB+"</span>";
+}else{
+bossTarget.style.display="none";
+}
+}
+
+function nextStage(){
+if(stage>10){showFinalBoss();return;}
+
+locked=false;
+
+if(stage%3===0){
+showBossBattle();
+return;
+}
+
+const a=makeChoice();
+const b=makeChoice();
+
+setButton(left,a,"⬅");
+setButton(right,b,"➡");
+
+if(currentLevel<=2){
+  msg.textContent="どちらを えらぶ？";
+  hint.textContent="いまの こうげきりょくを みて、けいさんして くらべよう。";
+}else{
+  msg.textContent="どちらをえらぶ？";
+  hint.textContent="いまの攻撃力を見て、計算して比べよう。";
+}
+enemies.textContent="👾 👾 👾";
+updateBossTarget();
+startTimer();
+}
+
+/*
+  ボスHP：
+  その時点での実際の攻撃力ではなく、
+  「ここまでの選択肢で常に最適な方を選んだ場合」の
+  optimalPowerを基準に決める。
+  Aは最適解なら必ず倒せる。
+  BはAよりかなり低く、最適解でなくても届きやすい。
+*/
+function showBossBattle(){
+locked=false;
+clearInterval(timer);
+
+const hpA=Math.max(10,Math.floor(optimalPower*0.92));
+const hpB=Math.max(1,Math.floor(optimalPower*0.68));
+
+if(currentLevel<=2){
+  msg.textContent="👹 ぼすが あらわれた！ どちらと たたかう？";
+  hint.textContent="いまの こうげきりょくを みて、たおせそうな ぼすを えらぼう。";
+}else{
+  msg.textContent="👹 ボスがあらわれた！ どちらと戦う？";
+  hint.textContent="いまの攻撃力を見て、倒せそうなボスをえらぼう。";
+}
+enemies.textContent="👹　　　　　👹";
+
+left.className="choice bossChoice";
+right.className="choice bossChoice";
+
+const bossTextA=currentLevel<=2?"ぼすA　HP ":"ボスA　HP ";
+const bossTextB=currentLevel<=2?"ぼすB　HP ":"ボスB　HP ";
+const bossSub=currentLevel<=2?"この ぼすと たたかう":"このボスと戦う";
+left.innerHTML="<span class='bossFace'>👹</span>"+bossTextA+hpA+
+"<small>"+bossSub+"</small>";
+right.innerHTML="<span class='bossFace'>👹</span>"+bossTextB+hpB+
+"<small>"+bossSub+"</small>";
+
+left.disabled=false;
+right.disabled=false;
+left.dataset.bossHP=hpA;
+right.dataset.bossHP=hpB;
+left.dataset.isBoss="1";
+right.dataset.isBoss="1";
+
+bossTarget.style.display="block";
+bossTarget.innerHTML=
+"今回のボス目標：<span>A HP "+hpA+"</span> ／ <span>B HP "+hpB+"</span>";
+
+bar.style.width="100%";
+}
+
+function startTimer(){
+clearInterval(timer);
+timeLeft=totalTime;
+bar.style.width="100%";
+
+timer=setInterval(function(){
+timeLeft-=100;
+bar.style.width=Math.max(0,timeLeft/totalTime*100)+"%";
+if(timeLeft<=0){
+clearInterval(timer);
+if(!locked)choose(null);
+}
+},100);
+}
+
+function choose(side){
+if(locked)return;
+
+locked=true;
+clearInterval(timer);
+left.disabled=true;
+right.disabled=true;
+
+const btn=side==="left"?left:right;
+const isBoss=btn.dataset.isBoss==="1";
+
+if(isBoss){
+fightBoss(btn);
+return;
+}
+
+const op=btn.dataset.op;
+const n=Number(btn.dataset.n);
+const before=power;
+
+/* 現在の選択を実行 */
+power=valueFor(before,{op,n});
+
+/* 同じ選択肢で最適だった場合の理論値も更新 */
+const other=btn===left?right:left;
+const otherValue=valueFor(before,{
+op:other.dataset.op,
+n:Number(other.dataset.n)
+});
+const chosenValue=power;
+optimalPower=Math.max(optimalPower,chosenValue,otherValue);
+
+player.style.left=side==="left"?"30%":"70%";
+updatePowerDisplay();
+addHistory(stage,before,op,n,power);
+
+if(side===null){
+msg.textContent="時間切れ！ 左の "+op+n+" になりました。";
+}else{
+msg.textContent=op+n+" をえらんだ！　"+before+" → "+power;
+}
+hint.textContent="攻撃中！";
+enemies.textContent="👾 👾 👾 👾 👾";
+
+setTimeout(function(){
+enemies.textContent="💥　💥　💥　💥　💥";
+setTimeout(function(){
+enemies.textContent="👾 👾 👾";
+stage++;
+stageEl.textContent=Math.min(stage,10);
+if(stage<=10)nextStage();else showFinalBoss();
+},600);
+},450);
+}
+
+function fightBoss(btn){
+const hp=Number(btn.dataset.bossHP);
+const bossName=btn===left?"ボスA":"ボスB";
+
+if(currentLevel<=2){
+  msg.textContent="⚔️ "+bossName+"と たたかう！";
+  hint.textContent="こうげきりょく "+power+" と ぼすHP "+hp+" を くらべよう！";
+}else{
+  msg.textContent="⚔️ "+bossName+"と戦う！";
+  hint.textContent="攻撃力 "+power+" と ボスHP "+hp+" をくらべよう！";
+}
+enemies.textContent="👹";
+
+setTimeout(function(){
+if(power>=hp){
+msg.textContent="💥 "+bossName+"撃破！ "+power+" ≥ "+hp;
+power+=hp;
+updatePowerDisplay();
+hint.textContent="ボスのHP "+hp+" が攻撃力に加わった！";
+addHistory("ボス撃破",0,"＋",hp,power);
+enemies.textContent="💥 👹 💥";
+}else{
+msg.textContent="😱 "+bossName+"に負けた… "+power+" < "+hp;
+hint.textContent="今回はここまで。次は攻撃力をもっと高くしよう！";
+enemies.textContent="👹";
+}
+setTimeout(function(){
+enemies.textContent="👾 👾 👾";
+stage++;
+stageEl.textContent=Math.min(stage,10);
+if(stage<=10)nextStage();else showFinalBoss();
+},850);
+},650);
+}
+
+/*
+  ラスボス：
+  「最適解を選び続けた場合」の最高攻撃力 optimalPower を基準に、
+  1だけ下のHPにする。
+  実際の攻撃力がoptimalPowerなら必ず勝てる。
+*/
+function showFinalBoss(){
+clearInterval(timer);
+locked=false;
+left.disabled=false;
+right.disabled=false;
+
+finalBossHP=Math.max(1,optimalPower-1);
+
+if(currentLevel<=2){
+  msg.textContent="👑 さいごの ぼすが あらわれた！";
+  hint.textContent="さいごの せんたく。たたかう？ それとも、にげる？";
+}else{
+  msg.textContent="👑 ラスボスがあらわれた！";
+  hint.textContent="最後の選択。戦う？ それとも、にげる？";
+}
+enemies.textContent="👑　　　　　👑";
+
+bossTarget.style.display="block";
+bossTarget.innerHTML=
+"ラスボス HP <span>"+finalBossHP.toLocaleString()+"</span>";
+
+left.className="choice bossChoice";
+right.className="choice bossChoice";
+
+if(currentLevel<=2){
+  left.innerHTML="<span class='bossFace'>👑</span>たたかう"+
+  "<small>かてば HPぶん こうげきりょくが たされる！</small>";
+  right.innerHTML="<span class='bossFace'>🏃</span>にげる"+
+  "<small>たたかわずに しゅうりょうする</small>";
+}else{
+  left.innerHTML="<span class='bossFace'>👑</span>戦う"+
+  "<small>勝てばHP分の攻撃力が追加！</small>";
+  right.innerHTML="<span class='bossFace'>🏃</span>にげる"+
+  "<small>戦わずに終了する</small>";
+}
+
+left.dataset.isFinal="1";
+right.dataset.isFinal="1";
+left.dataset.action="fight";
+right.dataset.action="run";
+
+bar.style.width="100%";
+}
+
+function finalChoice(action){
+if(locked)return;
+locked=true;
+clearInterval(timer);
+left.disabled=true;
+right.disabled=true;
+
+if(action==="run"){
+if(currentLevel<=2){
+  msg.textContent="🏃 さいごの ぼすから にげた！";
+  hint.textContent="げーむ しゅうりょう。";
+}else{
+  msg.textContent="🏃 ラスボスからにげた！";
+  hint.textContent="ゲーム終了。";
+}
+enemies.textContent="🏃💨";
+finish("にげた");
+return;
+}
+
+msg.textContent="⚔️ ラスボスと戦う！";
+hint.textContent="攻撃力 "+power+" と ラスボスHP "+finalBossHP+" をくらべよう。";
+enemies.textContent="👑";
+
+setTimeout(function(){
+if(power>=finalBossHP){
+if(currentLevel<=2){
+  msg.textContent="🎉 さいごの ぼすを たおした！";
+  power+=finalBossHP;
+  updatePowerDisplay();
+  hint.textContent="ぼすのHP "+finalBossHP+" が こうげきりょくに たされた！";
+}else{
+  msg.textContent="🎉 ラスボス撃破！";
+  power+=finalBossHP;
+  updatePowerDisplay();
+  hint.textContent="ラスボスのHP "+finalBossHP+" が攻撃力に追加された！";
+}
+enemies.textContent="💥 👑 💥";
+finish("ラスボス撃破");
+}else{
+if(currentLevel<=2){
+  msg.textContent="😱 さいごの ぼすに まけた…";
+  hint.textContent="いちばん つよくなる えらびかたを つづけると、もっと つよくなれる！";
+}else{
+  msg.textContent="😱 ラスボスに負けた…";
+  hint.textContent="最適解を選び続けると、もっと強くなれる！";
+}
+enemies.textContent="👑";
+finish("ラスボスに敗北");
+}
+},800);
+}
+
+function addHistory(s,before,op,n,after){
+if(history.textContent.includes("まだありません"))history.innerHTML="";
+const span=document.createElement("span");
+span.className="chip";
+span.textContent=s+"： "+Number(before).toLocaleString()+" "+op+" "+Number(n).toLocaleString()+" → "+Number(after).toLocaleString();
+history.appendChild(span);
+}
+
+function formatJapaneseNumber(n){
+  n=Math.floor(n);
+  if(n<10000)return String(n);
+
+  const oku=Math.floor(n/100000000);
+  const man=Math.floor((n%100000000)/10000);
+  const rest=n%10000;
+
+  let s="";
+  if(oku>0)s+=oku+"億";
+  if(man>0)s+=man+"万";
+  if(rest>0)s+=rest;
+  return s;
+}
+
+function startGame(level){
+currentLevel=level;
+if(level===1){power=10;totalTime=15000}
+else if(level===2){power=10;totalTime=12000}
+else if(level===3){power=100;totalTime=9000}
+else{power=1000;totalTime=6000}
+
+stage=1;
+locked=true;
+optimalPower=power;
+finalBossHP=power;
+
+updatePowerDisplay();
+stageEl.textContent=stage;
+history.innerHTML="<span class='chip'>まだありません</span>";
+result.style.display="none";
+bossTarget.style.display="none";
+startScreen.style.display="none";
+gameScreen.style.display="block";
+player.style.left="50%";
+if(level<=2){
+  msg.textContent="れべる"+level+" すたーと！";
+  hint.textContent="いまの こうげきりょくを みて、けいさんして くらべよう。";
+}else{
+  msg.textContent="レベル"+level+" スタート！";
+  hint.textContent="いまの攻撃力を見て、計算して比べよう。";
+}
+setTimeout(nextStage,650);
+}
+
+function finish(reason){
+clearInterval(timer);
+left.disabled=true;
+right.disabled=true;
+result.style.display="block";
+document.getElementById("finalPower").textContent=power.toLocaleString();
+document.getElementById("finalPowerJapanese").textContent=formatJapaneseNumber(power);
+
+if(currentLevel<=2){
+  document.getElementById("resultTitle").textContent="🎉 げーむ しゅうりょう！";
+  document.getElementById("finalPowerNumberLabel").textContent="さいごの こうげきりょく（すうじ）";
+  document.getElementById("finalPowerKanjiLabel").textContent="さいごの こうげきりょく（かんじまじり）";
+}else{
+  document.getElementById("resultTitle").textContent="🎉 ゲーム終了！";
+  document.getElementById("finalPowerNumberLabel").textContent="最終攻撃力（数字）";
+  document.getElementById("finalPowerKanjiLabel").textContent="最終攻撃力（漢字まじり）";
+}
+
+if(currentLevel<=2){
+  if(reason==="ラスボス撃破"){
+    document.getElementById("resultText").textContent="さいごの ぼすを げきは！ さいてきな けいさんを えらびつづける ちからが ついたね。";
+  }else if(reason==="にげた"){
+    document.getElementById("resultText").textContent="さいごの ぼすから にげて げーむ しゅうりょう！ つぎは たたかってみよう。";
+  }else{
+    document.getElementById("resultText").textContent="さいごの ぼすに ちょうせんした！ つぎは もっと こうげきりょくを たかくしよう。";
+  }
+}else{
+  if(reason==="ラスボス撃破"){
+    document.getElementById("resultText").textContent="ラスボス撃破！ 最適な計算を選び続ける力がついたね。";
+  }else if(reason==="にげた"){
+    document.getElementById("resultText").textContent="ラスボスからにげてゲーム終了！ 次は戦ってみよう。";
+  }else{
+    document.getElementById("resultText").textContent="ラスボスに挑戦した！ 次はもっと高い攻撃力を目指そう。";
+  }
+}
+bossTarget.style.display="none";
+}
+
+function returnToTitle(){
+clearInterval(timer);
+locked=true;
+gameScreen.style.display="none";
+startScreen.style.display="block";
+}
+
+document.querySelectorAll(".levelBtn").forEach(function(btn){
+btn.addEventListener("click",function(){
+startGame(Number(btn.dataset.level));
+});
+});
+
+left.addEventListener("click",function(){
+if(left.dataset.isFinal==="1")finalChoice("fight");
+else choose("left");
+});
+
+right.addEventListener("click",function(){
+if(right.dataset.isFinal==="1")finalChoice("run");
+else choose("right");
+});
+
+document.getElementById("backTitle").addEventListener("click",returnToTitle);
+</script>
+</body>
+</html>
